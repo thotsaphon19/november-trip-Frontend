@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { Card, Button, Input, Badge, Select, PageHeader, Pagination, usePagination, Tabs, ImageUploader, AttachmentList } from "../components/ui";
-import { Building2, ArrowLeft, AlertTriangle } from "lucide-react";
+import { Building2, ArrowLeft, AlertTriangle, BellRing } from "lucide-react";
 import { RoomTypeRow, MealCostRow, SeasonalPricingBlock, InclusionTagPicker, MultiInputList, HotelConditionsSection, StarRatingInput, StarRatingDisplay } from "./HotelDetailPage";
 import { THAI_PROVINCES } from "../lib/provinces";
 import { useUndo } from "../lib/undoContext";
@@ -409,6 +409,11 @@ export default function HotelSuppliers() {
 
       {!adding && (
         <>
+          <div className="mb-3 inline-flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">
+            <BellRing size={13} />
+            หน้านี้มีระบบแจ้งเตือนอัตโนมัติเมื่อสัญญาโรงแรมใกล้หมดอายุ (ล่วงหน้า {contractWarningDays} วัน) — ดูสถานะได้ที่คอลัมน์ "สัญญา"
+          </div>
+
           {(() => {
             const nearExpiry = hotels
               .map((h) => ({ hotel: h, alert: contractAlert(h, contractWarningDays) }))
@@ -480,7 +485,12 @@ export default function HotelSuppliers() {
                     <th className="text-left px-4 py-2">ห้องพัก</th>
                     <th className="text-right px-4 py-2">ราคา</th>
                     <th className="text-left px-4 py-2">ผู้ติดต่อ</th>
-                    <th className="text-left px-4 py-2">สัญญา</th>
+                    <th className="text-left px-4 py-2">
+                      <span className="inline-flex items-center gap-1" title={`ระบบแจ้งเตือนอัตโนมัติเมื่อสัญญาใกล้หมดอายุ (ก่อน ${contractWarningDays} วัน) เปิดใช้งานอยู่`}>
+                        <BellRing size={13} className="text-amber-500" />
+                        สัญญา
+                      </span>
+                    </th>
                     <th className="text-left px-4 py-2">Odoo</th>
                     <th></th>
                   </tr>
