@@ -480,6 +480,7 @@ export default function HotelSuppliers() {
                     <th className="text-left px-4 py-2">ห้องพัก</th>
                     <th className="text-right px-4 py-2">ราคา</th>
                     <th className="text-left px-4 py-2">ผู้ติดต่อ</th>
+                    <th className="text-left px-4 py-2">สัญญา</th>
                     <th className="text-left px-4 py-2">Odoo</th>
                     <th></th>
                   </tr>
@@ -522,6 +523,24 @@ export default function HotelSuppliers() {
                         <td className="px-4 py-2 text-xs text-slate-500">{h.roomTypes?.length || 0} ประเภท</td>
                         <td className="px-4 py-2 text-right font-medium">{range || <span className="text-slate-400 font-normal">—</span>}</td>
                         <td className="px-4 py-2 text-xs text-slate-500">{h.contactName || "—"}</td>
+                        <td className="px-4 py-2 text-xs">
+                          {h.contractEnd ? (
+                            <span
+                              className={
+                                rowAlert
+                                  ? rowAlert.level === "expired"
+                                    ? "text-red-600 font-medium"
+                                    : "text-amber-600 font-medium"
+                                  : "text-slate-500"
+                              }
+                            >
+                              {new Date(h.contractEnd).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
+                              {rowAlert && <span className="ml-1">⚠</span>}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300">ยังไม่ตั้งวันหมดสัญญา</span>
+                          )}
+                        </td>
                         <td className="px-4 py-2">
                           {h.odooId ? <Badge tone="green">Synced #{h.odooId}</Badge> : <Badge>Not synced</Badge>}
                         </td>
@@ -541,7 +560,7 @@ export default function HotelSuppliers() {
                   })}
                   {hotels.length === 0 && (
                     <tr>
-                      <td colSpan={10} className="px-4 py-6 text-center text-slate-400">
+                      <td colSpan={11} className="px-4 py-6 text-center text-slate-400">
                         ยังไม่มีข้อมูลโรงแรม
                       </td>
                     </tr>
