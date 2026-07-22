@@ -1,11 +1,33 @@
 import { useEffect, useState } from "react";
 import api from "../../lib/api";
 import { SectionCard, Button, Input, Badge } from "../../components/ui";
-import { Plug, DownloadCloud, Webhook } from "lucide-react";
+import { Plug, DownloadCloud, Webhook, Layers, RotateCcw } from "lucide-react";
+
+// Odoo's technical model name for each entity we sync. Defaults match a
+// stock Odoo install; overridable below for setups where the model was
+// renamed, doesn't exist (e.g. no Sales app -> "sale.order" is missing),
+// or is a Studio custom model instead.
+const ENTITY_MODEL_DEFAULTS = {
+  HotelSupplier: "res.partner",
+  TourSupplier: "res.partner",
+  Product: "product.template",
+  Quotation: "sale.order",
+};
+
+const ENTITY_MODEL_LABELS = {
+  HotelSupplier: "Hotel Supplier (Supplier > Hotels)",
+  TourSupplier: "Tour Supplier (Supplier > Tour)",
+  Product: "Product (สร้างทัวร์)",
+  Quotation: "Quotation (ใบเสนอราคา)",
+};
 
 export default function OdooTab() {
   const [form, setForm] = useState({ url: "", db: "", username: "", apiKey: "" });
   const [apiKeySet, setApiKeySet] = useState(false);
+  const [rawConfig, setRawConfig] = useState(null);
+  const [modelMapForm, setModelMapForm] = useState({ ...ENTITY_MODEL_DEFAULTS });
+  const [modelMapBusy, setModelMapBusy] = useState(false);
+  const [modelMapSaved, setModelMapSaved] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [logs, setLogs] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -17,6 +39,8 @@ export default function OdooTab() {
     if (data) {
       setForm({ url: data.url, db: data.db, username: data.username, apiKey: "" });
       setApiKeySet(data.apiKeySet);
+      setRawConfig(data);
+      setModelMapForm({ ...ENTITY_MODEL_DEFAULTS, ...(data.modelMap || {}) });
     }
     const logsRes = await api.get("/odoo/logs");
     setLogs(logsRes.data);
@@ -25,6 +49,19 @@ export default function OdooTab() {
   useEffect(() => {
     load();
   }, []);
+
+  async function saveModelMap(e) {
+    e.preventDefault();
+    setModelMapBusy(true);
+    setModelMapSaved(false);
+    try {
+      await api.put("/odoo/config", { ...rawConfig, modelMap: modelMapForm });
+      await load();
+      setModelMapSaved(true);
+    } finally {
+      setModelMapBusy(false);
+    }
+  }
 
   async function saveConfig(e) {
     e.preventDefault();
@@ -117,6 +154,44 @@ export default function OdooTab() {
         )}
       </SectionCard>
 
+      <SectionCard
+        icon={Layers}
+        title="การแมปโมเดล Odoo"
+        subtitle={'ถ้าเจอ error แบบ "Object xxx doesn\'t exist" แปลว่า Odoo ไม่มีโมเดลนั้น (เช่น ไม่ได้ติดตั้งแอป Sales) หรือใช้ชื่อโมเดล Studio custom แทน — แก้ชื่อโมเดลตรงนี้ได้เลย'}
+      >
+        <form onSubmit={saveModelMap} className="space-y-3">
+          {Object.keys(ENTITY_MODEL_DEFAULTS).map((entity) => (
+            <div key={entity} className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+              <label className="text-sm text-slate-600">{ENTITY_MODEL_LABELS[entity]}</label>
+              <div className="flex gap-1.5">
+                <input
+                  className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[var(--nt-primary)]/40"
+                  value={modelMapForm[entity] || ""}
+                  onChange={(e) => setModelMapForm({ ...modelMapForm, [entity]: e.target.value })}
+                  placeholder={ENTITY_MODEL_DEFAULTS[entity]}
+                />
+                {modelMapForm[entity] !== ENTITY_MODEL_DEFAULTS[entity] && (
+                  <button
+                    type="button"
+                    title={`รีเซ็ตเป็นค่าเริ่มต้น (${ENTITY_MODEL_DEFAULTS[entity]})`}
+                    onClick={() => setModelMapForm({ ...modelMapForm, [entity]: ENTITY_MODEL_DEFAULTS[entity] })}
+                    className="shrink-0 px-2 text-slate-400 hover:text-slate-700"
+                  >
+                    <RotateCcw size={15} />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+          <div className="flex items-center gap-3 pt-2">
+            <Button type="submit" disabled={modelMapBusy}>
+              บันทึกการแมปโมเดล
+            </Button>
+            {modelMapSaved && <span className="text-sm text-green-600">✅ บันทึกแล้ว</span>}
+          </div>
+        </form>
+      </SectionCard>
+
       <SectionCard icon={DownloadCloud} title="ดึงข้อมูลจาก Odoo (Pull)" subtitle="ใช้เมื่อมีคนแก้ไขข้อมูลฝั่ง Odoo โดยตรง">
         <p className="text-sm text-slate-500 mb-3">
           การเปลี่ยนราคาต้นทุนจะไล่อัปเดตทุกวันในทัวร์/ใบเสนอราคาที่ใช้ supplier นั้นอยู่ให้อัตโนมัติ
@@ -144,18 +219,24 @@ export default function OdooTab() {
         subtitle="สำหรับใบเสนอราคาที่สร้างใน Odoo โดยตรง ไม่เคยผ่านเว็บนี้มาก่อน"
       >
         <p className="text-sm text-slate-500 mb-1">
-          ใช้เมื่อพี่สร้าง/ตีราคาใบเสนอราคาใน Odoo ก่อน แล้วอยากได้ข้อมูลนั้นมาไว้ในเว็บนี้ (เช่น เพื่อโหลด PDF ภาษาอังกฤษ) โดยไม่ต้องพิมพ์ชื่อลูกค้า/ราคาใหม่
+          ใช้เมื่อสร้าง/ตีราคาใบเสนอราคาใน Odoo ก่อน แล้วอยากได้ข้อมูลนั้นมาไว้ในเว็บนี้ (เช่น เพื่อโหลด PDF ภาษาอังกฤษ) โดยไม่ต้องพิมพ์ชื่อลูกค้า/ราคาใหม่
         </p>
         <p className="text-xs text-amber-600 mb-3">
           ข้อควรรู้: Odoo เก็บรายการสินค้าเป็น list เดียว ไม่มีข้อมูล "วันไหนไปไหน" เหมือนเว็บนี้ ระบบจะนำเข้ารายการทั้งหมดไปไว้ที่ Day 1 ก่อน
-          แล้วพี่ค่อยจัดเรียงเป็นรายวันเองอีกที (ราคาต้นทุนก็ต้องกรอกใหม่ เพราะ Odoo ไม่มีข้อมูลต้นทุนของเรา)
+          แล้วค่อยจัดเรียงเป็นรายวันเองอีกที (ราคาต้นทุนก็ต้องกรอกใหม่ เพราะ Odoo ไม่มีข้อมูลต้นทุนของเรา)
         </p>
         <Button onClick={runImportQuotations} disabled={busy}>
           ⬇ นำเข้าใบเสนอราคาใหม่
         </Button>
         {importResult && (
           <div className={`text-sm mt-2 ${importResult.error ? "text-red-600" : "text-green-600"}`}>
-            {importResult.error ? `❌ ${importResult.error}` : `✅ นำเข้าแล้ว ${importResult.data.imported} ใบ (พบทั้งหมด ${importResult.data.fetched} ใบใน Odoo, ${importResult.data.skipped} ใบเชื่อมกับเว็บนี้อยู่แล้ว)`}
+            {importResult.error
+              ? `❌ ${importResult.error}${
+                  /doesn't exist|does not exist/i.test(importResult.error)
+                    ? " — ลองแก้ชื่อโมเดลของ Quotation ที่การ์ด \"การแมปโมเดล Odoo\" ด้านบน (Odoo อาจไม่มีโมเดลนี้ หรือใช้ชื่ออื่น)"
+                    : ""
+                }`
+              : `✅ นำเข้าแล้ว ${importResult.data.imported} ใบ (พบทั้งหมด ${importResult.data.fetched} ใบใน Odoo, ${importResult.data.skipped} ใบเชื่อมกับเว็บนี้อยู่แล้ว)`}
           </div>
         )}
       </SectionCard>
