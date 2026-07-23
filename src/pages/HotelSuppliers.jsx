@@ -2,12 +2,10 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { Card, Button, Input, Badge, Select, PageHeader, Pagination, usePagination, Tabs, ImageUploader, AttachmentList } from "../components/ui";
-import { Building2, ArrowLeft, AlertTriangle, BellRing } from "lucide-react";
+import { Building2, ArrowLeft, ArrowUpDown } from "lucide-react";
 import { RoomTypeRow, MealCostRow, SeasonalPricingBlock, InclusionTagPicker, MultiInputList, HotelConditionsSection, StarRatingInput, StarRatingDisplay } from "./HotelDetailPage";
 import { THAI_PROVINCES } from "../lib/provinces";
 import { useUndo } from "../lib/undoContext";
-import { contractAlert } from "../lib/hotelMeta";
-import { useTheme } from "../lib/themeContext";
 
 function roomPriceRange(roomTypes) {
   if (!roomTypes || roomTypes.length === 0) return null;
@@ -45,16 +43,27 @@ const ADD_TABS = [
 
 export default function HotelSuppliers() {
   const { scheduleAction } = useUndo();
-  const { settings: appSettings } = useTheme();
-  const contractWarningDays = appSettings?.contractWarningDays ?? 7;
   const [hotels, setHotels] = useState([]);
   const [q, setQ] = useState("");
   const [provinceFilter, setProvinceFilter] = useState("");
   const [starFilter, setStarFilter] = useState("");
   const [amenityFilter, setAmenityFilter] = useState("");
   const [amenityOptions, setAmenityOptions] = useState([]);
+  // null = no sort (default list order); "asc"/"desc" sorts by contractEnd,
+  // with hotels that have no contract date pushed to the bottom either way.
+  const [contractSort, setContractSort] = useState(null);
   const navigate = useNavigate();
-  const { page, setPage, totalPages, total, pageItems, rangeStart, rangeEnd } = usePagination(hotels, 50);
+  const sortedHotels =
+    contractSort === null
+      ? hotels
+      : [...hotels].sort((a, b) => {
+          if (!a.contractEnd && !b.contractEnd) return 0;
+          if (!a.contractEnd) return 1;
+          if (!b.contractEnd) return -1;
+          const diff = new Date(a.contractEnd) - new Date(b.contractEnd);
+          return contractSort === "asc" ? diff : -diff;
+        });
+  const { page, setPage, totalPages, total, pageItems, rangeStart, rangeEnd } = usePagination(sortedHotels, 50);
 
   // --- Inline "add new hotel" panel state -----------------------------------
   const [adding, setAdding] = useState(false);
@@ -409,41 +418,6 @@ export default function HotelSuppliers() {
 
       {!adding && (
         <>
-          <div className="mb-3 inline-flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">
-            <BellRing size={13} />
-            หน้านี้มีระบบแจ้งเตือนอัตโนมัติเมื่อสัญญาโรงแรมใกล้หมดอายุ (ล่วงหน้า {contractWarningDays} วัน) — ดูสถานะได้ที่คอลัมน์ "สัญญา"
-          </div>
-
-          {(() => {
-            const nearExpiry = hotels
-              .map((h) => ({ hotel: h, alert: contractAlert(h, contractWarningDays) }))
-              .filter((x) => x.alert)
-              .sort((a, b) => a.alert.daysLeft - b.alert.daysLeft);
-            if (nearExpiry.length === 0) return null;
-            return (
-              <div className="mb-4 border border-amber-200 bg-amber-50 rounded-lg p-3">
-                <div className="flex items-center gap-1.5 text-sm font-semibold text-amber-800 mb-2">
-                  <AlertTriangle size={16} />
-                  โรงแรมที่ใกล้หมดอายุสัญญา ({nearExpiry.length})
-                </div>
-                <div className="space-y-1">
-                  {nearExpiry.map(({ hotel, alert }) => (
-                    <button
-                      key={hotel.id}
-                      onClick={() => navigate(`/suppliers/hotels/${hotel.id}`)}
-                      className={`w-full flex items-center justify-between text-sm text-left px-2.5 py-1.5 rounded hover:bg-white/60 ${
-                        alert.level === "expired" ? "text-red-700" : "text-amber-700"
-                      }`}
-                    >
-                      <span className="font-medium">{hotel.name}</span>
-                      <span>{alert.text}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          })()}
-
           <div className="flex gap-3 mb-3 flex-wrap">
             <Input placeholder="ค้นหารหัสโรงแรม / ชื่อโรงแรม" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
             <Select value={provinceFilter} onChange={(e) => setProvinceFilter(e.target.value)} className="max-w-xs">
@@ -486,10 +460,15 @@ export default function HotelSuppliers() {
                     <th className="text-right px-4 py-2">ราคา</th>
                     <th className="text-left px-4 py-2">ผู้ติดต่อ</th>
                     <th className="text-left px-4 py-2">
-                      <span className="inline-flex items-center gap-1" title={`ระบบแจ้งเตือนอัตโนมัติเมื่อสัญญาใกล้หมดอายุ (ก่อน ${contractWarningDays} วัน) เปิดใช้งานอยู่`}>
-                        <BellRing size={13} className="text-amber-500" />
+                      <button
+                        type="button"
+                        onClick={() => setContractSort(contractSort === "asc" ? "desc" : "asc")}
+                        className="inline-flex items-center gap-1 hover:text-slate-700"
+                        title="เรียงตามวันหมดสัญญา"
+                      >
                         สัญญา
-                      </span>
+                        <ArrowUpDown size={12} className={contractSort ? "text-slate-700" : "text-slate-400"} />
+                      </button>
                     </th>
                     <th className="text-left px-4 py-2">Odoo</th>
                     <th></th>
@@ -499,7 +478,6 @@ export default function HotelSuppliers() {
                   {pageItems.map((h) => {
                     const thumbUrl = h.logoUrl || h.images?.[0]?.url;
                     const range = roomPriceRange(h.roomTypes);
-                    const rowAlert = contractAlert(h, contractWarningDays);
                     return (
                       <tr
                         key={h.id}
@@ -516,16 +494,7 @@ export default function HotelSuppliers() {
                           )}
                         </td>
                         <td className="px-4 py-2 font-mono text-xs">{h.hotelCode}</td>
-                        <td className="px-4 py-2">
-                          <span className="flex items-center gap-1.5">
-                            {h.name}
-                            {rowAlert && (
-                              <span title={rowAlert.text}>
-                                <AlertTriangle size={14} className={rowAlert.level === "expired" ? "text-red-500" : "text-amber-500"} />
-                              </span>
-                            )}
-                          </span>
-                        </td>
+                        <td className="px-4 py-2">{h.name}</td>
                         <td className="px-4 py-2">
                           <StarRatingDisplay value={h.starRating} size={12} />
                         </td>
@@ -533,20 +502,9 @@ export default function HotelSuppliers() {
                         <td className="px-4 py-2 text-xs text-slate-500">{h.roomTypes?.length || 0} ประเภท</td>
                         <td className="px-4 py-2 text-right font-medium">{range || <span className="text-slate-400 font-normal">—</span>}</td>
                         <td className="px-4 py-2 text-xs text-slate-500">{h.contactName || "—"}</td>
-                        <td className="px-4 py-2 text-xs">
+                        <td className="px-4 py-2 text-xs text-slate-500">
                           {h.contractEnd ? (
-                            <span
-                              className={
-                                rowAlert
-                                  ? rowAlert.level === "expired"
-                                    ? "text-red-600 font-medium"
-                                    : "text-amber-600 font-medium"
-                                  : "text-slate-500"
-                              }
-                            >
-                              {new Date(h.contractEnd).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
-                              {rowAlert && <span className="ml-1">⚠</span>}
-                            </span>
+                            new Date(h.contractEnd).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })
                           ) : (
                             <span className="text-slate-300">ยังไม่ตั้งวันหมดสัญญา</span>
                           )}

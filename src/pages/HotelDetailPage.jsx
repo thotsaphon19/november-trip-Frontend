@@ -1,14 +1,11 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { Card, Button, Input, Select, Modal, ImageUploader, Tabs, AttachmentList } from "../components/ui";
-import { ArrowLeft, Building2, ChevronDown, ChevronRight, Settings2, Pencil, Trash2, Check, X, Star, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Building2, ChevronDown, ChevronRight, Settings2, Pencil, Trash2, Check, X, Star } from "lucide-react";
 import { THAI_PROVINCES } from "../lib/provinces";
 import { useUndo } from "../lib/undoContext";
 import { DOW_LABELS_TH, daysOfWeekLabel } from "../lib/dayOfWeek";
-import { contractAlert, DEFAULT_CONTRACT_WARNING_DAYS } from "../lib/hotelMeta";
-import { playAlertBeep } from "../lib/notificationSound";
-import { useTheme } from "../lib/themeContext";
 
 const MONTHS_TH = [
   "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
@@ -260,8 +257,6 @@ export default function HotelDetailPage() {
   const [editingHotel, setEditingHotel] = useState(false);
   const [hotelForm, setHotelForm] = useState(null);
   const [tab, setTab] = useState("details");
-  const { settings: appSettings } = useTheme();
-  const contractWarningDays = appSettings?.contractWarningDays ?? DEFAULT_CONTRACT_WARNING_DAYS;
 
   async function load() {
     const { data } = await api.get(`/suppliers/hotels/${id}`);
@@ -272,17 +267,6 @@ export default function HotelDetailPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
-
-  // Plays the alert chime once per visit to this hotel's page (not on every
-  // reload() after an edit) - a ref rather than state so updating it never
-  // triggers a re-render.
-  const soundPlayedForRef = useRef(null);
-  useEffect(() => {
-    if (!hotel || soundPlayedForRef.current === hotel.id) return;
-    soundPlayedForRef.current = hotel.id;
-    if (contractAlert(hotel, contractWarningDays)) playAlertBeep();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hotel]);
 
   function hotelToForm(h) {
     return {
@@ -419,18 +403,6 @@ export default function HotelDetailPage() {
         </div>
 
         {error && <div className="text-red-600 text-sm px-5 pb-3">{error}</div>}
-
-        {(() => {
-          const alert = contractAlert(hotel, contractWarningDays);
-          if (!alert) return null;
-          const tone = alert.level === "expired" ? "bg-red-50 border-red-200 text-red-700" : "bg-amber-50 border-amber-200 text-amber-700";
-          return (
-            <div className={`mx-5 mb-4 flex items-center gap-2 text-sm border rounded-lg px-3 py-2 ${tone}`}>
-              <AlertTriangle size={16} className="shrink-0" />
-              <span>{alert.text}</span>
-            </div>
-          );
-        })()}
 
         <Modal open={editingHotel} onClose={() => setEditingHotel(false)} title="แก้ไขข้อมูลโรงแรม">
           {hotelForm && (

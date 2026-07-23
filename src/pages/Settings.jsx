@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plug, GitCompareArrows, Palette, Mail, MessageCircle, Users, BellRing } from "lucide-react";
+import { Plug, GitCompareArrows, Palette, Mail, MessageCircle, Users } from "lucide-react";
 import { useAuth } from "../lib/authContext";
 import OdooTab from "./settings/OdooTab";
 import FieldMappingTab from "./settings/FieldMappingTab";
@@ -7,13 +7,11 @@ import AppearanceTab from "./settings/AppearanceTab";
 import EmailTab from "./settings/EmailTab";
 import LineTab from "./settings/LineTab";
 import UsersTab from "./settings/UsersTab";
-import NotificationsTab from "./settings/NotificationsTab";
 
 const TABS = [
   { key: "odoo", label: "Odoo", icon: Plug, component: OdooTab },
   { key: "mapping", label: "Field Mapping", icon: GitCompareArrows, component: FieldMappingTab },
   { key: "appearance", label: "ธีม/หน้าตา", icon: Palette, component: AppearanceTab },
-  { key: "notifications", label: "แจ้งเตือน", icon: BellRing, component: NotificationsTab, adminOnly: true },
   { key: "email", label: "อีเมล", icon: Mail, component: EmailTab },
   { key: "line", label: "LINE", icon: MessageCircle, component: LineTab },
   { key: "users", label: "ผู้ใช้งาน", icon: Users, component: UsersTab, adminOnly: true },
