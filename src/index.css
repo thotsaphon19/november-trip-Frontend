@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+/* Design tokens - overridden at runtime by ThemeProvider from Settings >
+   Appearance, so the whole app re-colors/re-fonts without a rebuild. */
+:root {
+  --nt-primary: #2563eb;       /* blue-600 */
+  --nt-primary-hover: #1d4ed8; /* blue-700 */
+  --nt-primary-light: #eff6ff; /* blue-50 */
+  --nt-primary-soft: #dbeafe;  /* blue-100 */
+  --nt-font: "Inter", "Noto Sans Thai", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--nt-font);
+  background-color: #f8fafc; /* slate-50 */
+}
+
+/* Show a hand cursor on anything clickable - browsers default <button> to a
+   plain arrow cursor (only <a> gets a hand by default), so this needs to be
+   set explicitly for buttons, checkboxes/radios, selects, and any element we
+   attach an onClick handler to (rows, cards, custom toggles, etc. - those use
+   the .cursor-pointer utility class directly since React's onClick doesn't
+   render as a matchable "onclick" DOM attribute). */
+button,
+select,
+summary,
+[role="button"],
+input[type="checkbox"],
+input[type="radio"],
+input[type="submit"],
+input[type="button"],
+label:has(> input[type="checkbox"]),
+label:has(> input[type="radio"]) {
+  cursor: pointer;
+}
+
+button:disabled,
+input:disabled,
+select:disabled {
+  cursor: not-allowed;
+}
+
+/* Thin, clean scrollbars to match the airy blue/white look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Countdown bar on the undo toast (see lib/undoContext.jsx) */
+@keyframes undo-shrink {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
